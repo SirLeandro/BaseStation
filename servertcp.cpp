@@ -10,6 +10,10 @@
 #include <sys/types.h>
 #include <time.h>
 #include <boost/lexical_cast.hpp>
+#include <iostream>
+#include <fstream>
+
+#define BUFFER_SIZE 256
 
 
 
@@ -65,7 +69,7 @@ ServerTCP::ServerTCP(int port)
     puts("Bind efetuado com sucesso\n");
 
     // Ouvindo por conexoes
-    listen(socketfd, 1); //marco esse socket como passivo, que só excuta conexões e aceita no máximo 1 conexao pendentes em sua fila
+    listen(socketfd, 1);
     acceptConections();
 }
 ///------------------------------------------------------------------------------------------------------
@@ -96,10 +100,10 @@ void ServerTCP::acceptConections()
         puts("Handler assigned\n\n");
 
         int tamanho = 1;
-        unsigned char respostab[1024];
+        char respostab[BUFFER_SIZE];
         while(tamanho>0)
         {
-            if ((tamanho = read(conexao, respostab, 1024)) < 0)
+            if ((tamanho = read(conexao, respostab, BUFFER_SIZE)) < 0)
             {
                 perror("Erro ao receber dados do cliente: ");
 
@@ -107,7 +111,122 @@ void ServerTCP::acceptConections()
             else
             {
 
-               /* for(int i = 0; i< tamanho;i++)
+
+
+                        usleep(10000);
+                        cout<<"rbuffer: "<<respostab;
+                        std::string packs_size = std::string(respostab);
+                        std::string resposta_str = "";
+
+                        unsigned long int qtd = std::stol(packs_size);
+                        cout<<"QTD DE PACKS: "<<qtd<<endl;
+                        bzero(respostab,BUFFER_SIZE);
+
+                        if(qtd==1){
+
+                            tamanho = read(conexao, respostab, BUFFER_SIZE);
+                            if(tamanho <= 0) {
+                                 printf("ClientTCP::sendMessageToServer = Erro ao ler no socket");
+                                 close(conexao);
+                                 //connected = false;
+                                 //return -1;
+                                }
+
+                        cout<<"RESPOSTAB: "<<respostab<<endl;
+
+                        if(respostab[0]=='0') {
+                            //exec emergencia() - telegram bot etc, retorna acesso como válido
+                            std::string resp;
+                            resp.push_back('2');
+                            cout<<"RESP:: "<<resp<<endl;
+                            fragment(resp,conexao);
+                        }
+
+                        else if(respostab[0]=='1'){
+                            // exec valid_senha() - procura a senha fornecida no banco de dados mysql retorna 0 para nao valido e 1 para valido
+
+                            std::string resp;
+                           resp.push_back(pwd_validation(respostab));
+                           fragment(resp,conexao);
+
+                        }
+
+
+                        else if(respostab[0]=='2') {
+
+                            // exec wgt_valid() -- compara o peso (com a tolerancia e retorna 0 ou 1
+
+                            std::string resp;
+                            resp.push_back(wgt_validation(respostab));
+                            fragment(resp,conexao);
+                        }
+
+                        else if(respostab[0]=='3'){
+                            // exec finger_valid() -> busca a digital no banco de dados através da senha previamente digitada
+                            cout<<"INICIANDO FRAGMENTADOR"<<endl;
+                            cout<<A_FING<<endl;
+                            fragment(A_FING,conexao);
+
+
+                        }
+                        else if(respostab[0]=='5'){
+                            // exec new_user()
+                        }
+
+                        else return;
+                        }
+              else if(qtd>20)
+                        {
+                           resposta_str = "";
+                           for(int bytes=0;bytes<qtd;bytes++){
+                              tamanho = read(conexao, respostab, 1);
+                              if(tamanho <= 0) {
+                                   printf("ClientTCP::sendMessageToServer = Erro ao ler no socket");
+                                   close(conexao);
+                                   //connected = false;
+                                   return;
+                                  }
+                              resposta_str.push_back(respostab[0]);
+                              //usleep(1000);
+
+                           }
+                           cout<<"IMAGEM RECEBIDA"<<endl;
+                           std::string img_str = resposta_str;
+                           std::ofstream img_file;
+                           img_file.open("wallpaper_rcvd.jpg", std::ios_base::out | std::ios_base::binary);
+                           img_file.write(img_str.c_str(), img_str.length());
+                           img_file.close();
+                           fragment("1",conexao);
+                        }
+                else{
+                            resposta_str = "";
+                    for(int packs=0;packs<qtd;packs++){
+
+                        tamanho = read(conexao, respostab, BUFFER_SIZE);
+                        if(tamanho <= 0) {
+                             printf("ClientTCP::sendMessageToServer = Erro ao ler no socket");
+                             close(conexao);
+                             //connected = false;
+                             return;
+                            }
+
+                        for(int i=0;i<BUFFER_SIZE;i++){
+                        if(respostab[i]!=NULL){
+                        resposta_str.push_back(respostab[i]);
+
+                        usleep(2000);
+                        }
+
+                        else break;
+                        }
+                        bzero(respostab,BUFFER_SIZE);
+                       // cout<<"Fragmento: "<<resposta_str<<endl;
+
+                    }
+
+
+                        }
+                /*for(int i = 0; i< tamanho;i++)
                 {
                     printf("tamanho: %d\n", tamanho);///teste
                     printf("resposta[i]: %c\n", respostab[i]);///teste
@@ -115,10 +234,10 @@ void ServerTCP::acceptConections()
 
 
                 }*/
-
-
+            /*
+            cout<<tamanho<<endl;
             unsigned char resposta[tamanho];
-            for(int k=0;k<sizeof(resposta);k++)
+            for(int k=0;k<tamanho;k++)
                 resposta[k]=respostab[k];
 
 
@@ -176,7 +295,7 @@ void ServerTCP::acceptConections()
                 ///teste
                 //resposta[tamanho] = '\0';
                 //printf("O cliente falou: %s\n", resposta);
-
+            */
             }
 
             /*if (strcmp(resposta, "end") == 0) {
@@ -184,14 +303,20 @@ void ServerTCP::acceptConections()
                 printf("Servidor finalizado...\n");
                 return;
             }*/
+            cout<<"Resposta enviada!"<<endl;
+            bzero(respostab,BUFFER_SIZE);
         }
+
     }
 }
 
 
-char ServerTCP::pwd_validation(unsigned char* resposta){
-    
-    std::string PWD = "";
+char ServerTCP::pwd_validation(char *resposta){
+    cout<<"TAMANHO DA VAR : "<<sizeof(resposta)<<endl;
+    cout<<resposta<<endl;
+
+
+    std::string PWD;
     for(int i=1;i<5;i++){
        PWD.append(1,resposta[i]);
     }
@@ -252,7 +377,7 @@ char ServerTCP::pwd_validation(unsigned char* resposta){
 
         }
 
-char ServerTCP::wgt_validation(unsigned char* resposta){
+char ServerTCP::wgt_validation(char* resposta){
     std::string WGT;
     int len = sizeof(resposta);
     cout<<len<<endl;
@@ -271,15 +396,15 @@ char ServerTCP::wgt_validation(unsigned char* resposta){
     else return '0';
 }
 
-char ServerTCP::fng_validation(unsigned char* resposta){
+char ServerTCP::fng_validation(char* resposta){
 
 }
 
-char ServerTCP::fac_validation(unsigned char* resposta){
+char ServerTCP::fac_validation(char* resposta){
 
 }
 
-char ServerTCP::new_usr(unsigned char* resposta){
+char ServerTCP::new_usr(char* resposta){
 /*
 
     driver = get_driver_instance();
@@ -335,48 +460,70 @@ char ServerTCP::new_usr(unsigned char* resposta){
 void ServerTCP::fragment(std::string full_str,int conexao){
 
 
-    int len = full_str.length();
+    unsigned long int len = full_str.size();//full_str.length();
     cout<<len<<endl;
-    int m=10;
+    unsigned long int m=10;
     unsigned long int i=1;
     int j=1;
     while(true){
     m = len/i;
     cout<<m<<endl;
-    if(m<8) break;
+    if(m<BUFFER_SIZE) break;
     i++;
-
     }
-
-    unsigned long int packs = i;
+    unsigned long int packs;
+    if(len%BUFFER_SIZE==0){
+    packs = i-1;
+    }
+    else{
+    packs = i;
+    }
     cout<<packs<<endl;
-    char * resp = new char[8];
-    bzero(resp,8);
+    char * resp = new char[BUFFER_SIZE];
+    bzero(resp,BUFFER_SIZE);
     i =0;
     j=0;
     char * fstr = new char[full_str.length()];
+    //bzero(fstr,full_str.size());
     strcpy (fstr, full_str.c_str());
-
+    cout<<"FSTR: "<<fstr<<endl;
+    //cout<<"FSTR SIZE: "<<fstr<<endl;
     std::string s = std::to_string(packs);
     char const *pchar = s.c_str();
-    memcpy (resp,pchar,8);
+    memcpy (resp,pchar,BUFFER_SIZE);
 
     cout<<"Primeiro envio: "<<resp<<endl;
-    int p=write(conexao,resp,sizeof(resp));
+    int p=write(conexao,resp,std::string(pchar).size());
     if(p<0) exit(1);
     usleep(10000);
     for(int n=0;n<packs;n++)
     {
+        resp = new char[BUFFER_SIZE];
         int aux = i;
-        for (i=aux; i<aux+8;i++){
+        for (i=aux; i<aux+BUFFER_SIZE;i++){
+            if(fstr[i]!=NULL){
             resp[j]=fstr[i];
             j++;
+            }
+            else{
+                 break;
+
+            }
         }
-        j=0;
-        cout<<"Enviando isto: "<<resp<<endl;
-        int p=write(conexao,resp,sizeof(resp)); //sizeof(resp)+1
+
+
+        char send[j];
+        for(int h=0;h<j;h++)
+        send[h]=resp[h];
+
+        cout<<"Enviando isto: "<<send<<endl;
+        cout<<"TAMANHO: "<<sizeof(send)<<endl;
+        int p=write(conexao,send,sizeof(send)); //sizeof(resp)+1
         if (p < 0) break;
-        usleep(10000);
+        usleep(15000);
+        j=0;
+        delete [] resp;
+       // bzero(resp,BUFFER_SIZE);
     }
 
 

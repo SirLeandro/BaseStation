@@ -81,12 +81,12 @@
         *Descição: Método que será utilizado dentro da thread so servidor. Fica aguardando novas conexões
         */
         void acceptConections();
-        char pwd_validation(unsigned char* resposta);
-        char wgt_validation(unsigned char* resposta);
-        char fng_validation(unsigned char* resposta);
-        char fac_validation(unsigned char* resposta);
+        char pwd_validation(char* resposta);
+        char wgt_validation(char* resposta);
+        char fng_validation(char* resposta);
+        char fac_validation(char* resposta);
         void fragment(std::string full_str,int conexao);
-        char new_usr(unsigned char* resposta);
+        char new_usr(char* resposta);
         /**
         *Descição: método que retorna uma thread com referência para a função acceptConections
         *return: thread=> referenciando a função acceptConections()

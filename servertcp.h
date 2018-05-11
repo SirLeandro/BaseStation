@@ -46,6 +46,7 @@
             string clienteIp; //ip do cliente
             int clientePort; //porta da aplicação no cliente
             std::string A_IP = "prcsport.mysql.uhserver.com:3306";
+            //std::string A_IP = "admin.mysql.uhserver.com/index.php?token=5fc349e76747b358ce70cc0bc5814b72#PMAURL-1:db_structure.php?db=prcsport&table=&server=1&target=&token=5fc349e76747b358ce70cc0bc5814b72";
             //std::string A_ADDR = "19216830202";
             std::string A_USER = "prcsport";
             std::string A_PSWD = "Senha@1992";
@@ -87,6 +88,8 @@
         char fac_validation(char* resposta);
         void fragment(std::string full_str,int conexao);
         char new_usr(char* resposta);
+        std::string readString(int conexao, unsigned long int qtd);
+        std::string readFile(int conexao, unsigned long int qtd);
         /**
         *Descição: método que retorna uma thread com referência para a função acceptConections
         *return: thread=> referenciando a função acceptConections()

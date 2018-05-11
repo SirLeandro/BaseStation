@@ -13,35 +13,14 @@
 #include <iostream>
 #include <fstream>
 
-#define BUFFER_SIZE 256
+#define BUFFER_SIZE 1024
+#define SLEEP_TIME 15000
 
 
 
 ServerTCP::ServerTCP()
 {
-    portNumber = 1234;
-    socketfd = socket(AF_INET, SOCK_STREAM, 0); //obtém o socket do sistema
-    ///AF_INET = socket que aceita endereços ipv4
-    if (socketfd == -1) {
-        printf("Nao foi possivel criar o socket\n");
-        //return -1;
-    }
 
-    //Preparando a struct do socket
-    servidor.sin_family = AF_INET;//AF_INET = socket que aceita endereços ipv4
-    servidor.sin_addr.s_addr = INADDR_ANY; // Obtem IP do S.O.
-    servidor.sin_port = htons(portNumber);//associa esse socket com a porta
-
-    //Associando o socket a porta e endereco
-    if (bind(socketfd, (struct sockaddr *) &servidor, sizeof (servidor)) < 0) {
-        puts("Erro ao fazer bind Tente outra porta\n");
-        //return -1;
-    }
-    puts("Bind efetuado com sucesso\n");
-
-    // Ouvindo por conexoes
-    listen(socketfd, 1); //marco esse socket como passivo, que só excuta conexões e aceita no máximo 1 conexao pendentes em sua fila
-    acceptConections();
 }
 ///------------------------------------------------------------------------------------------------------
 
@@ -113,7 +92,7 @@ void ServerTCP::acceptConections()
 
 
 
-                        usleep(10000);
+                        usleep(SLEEP_TIME);
                         cout<<"rbuffer: "<<respostab;
                         std::string packs_size = std::string(respostab);
                         std::string resposta_str = "";
@@ -122,7 +101,7 @@ void ServerTCP::acceptConections()
                         cout<<"QTD DE PACKS: "<<qtd<<endl;
                         bzero(respostab,BUFFER_SIZE);
 
-                        if(qtd==1){
+                        if(qtd<10){
 
                             tamanho = read(conexao, respostab, BUFFER_SIZE);
                             if(tamanho <= 0) {
@@ -175,10 +154,10 @@ void ServerTCP::acceptConections()
 
                         else return;
                         }
-              else if(qtd>20)
+              else if(qtd>2000)
                         {
-                           resposta_str = "";
-                           for(int bytes=0;bytes<qtd;bytes++){
+                           resposta_str = readFile(conexao,qtd);
+                           /*for(int bytes=0;bytes<qtd;bytes++){
                               tamanho = read(conexao, respostab, 1);
                               if(tamanho <= 0) {
                                    printf("ClientTCP::sendMessageToServer = Erro ao ler no socket");
@@ -189,17 +168,18 @@ void ServerTCP::acceptConections()
                               resposta_str.push_back(respostab[0]);
                               //usleep(1000);
 
-                           }
+                           }*/
                            cout<<"IMAGEM RECEBIDA"<<endl;
                            std::string img_str = resposta_str;
                            std::ofstream img_file;
-                           img_file.open("wallpaper_rcvd.jpg", std::ios_base::out | std::ios_base::binary);
+                           img_file.open("photo_received.jpg", std::ios_base::out | std::ios_base::binary);
                            img_file.write(img_str.c_str(), img_str.length());
                            img_file.close();
                            fragment("1",conexao);
                         }
                 else{
-                            resposta_str = "";
+                            resposta_str = readString(conexao,qtd);
+                            /*
                     for(int packs=0;packs<qtd;packs++){
 
                         tamanho = read(conexao, respostab, BUFFER_SIZE);
@@ -222,7 +202,7 @@ void ServerTCP::acceptConections()
                         bzero(respostab,BUFFER_SIZE);
                        // cout<<"Fragmento: "<<resposta_str<<endl;
 
-                    }
+                    }*/
 
 
                         }
@@ -488,18 +468,18 @@ void ServerTCP::fragment(std::string full_str,int conexao){
     strcpy (fstr, full_str.c_str());
     cout<<"FSTR: "<<fstr<<endl;
     //cout<<"FSTR SIZE: "<<fstr<<endl;
-    std::string s = std::to_string(packs);
+    std::string s = std::to_string(len);//packs);
     char const *pchar = s.c_str();
     memcpy (resp,pchar,BUFFER_SIZE);
 
     cout<<"Primeiro envio: "<<resp<<endl;
-    int p=write(conexao,resp,std::string(pchar).size());
+    int p=write(conexao,resp,BUFFER_SIZE);//std::string(pchar).size());
     if(p<0) exit(1);
-    usleep(10000);
-    for(int n=0;n<packs;n++)
+    usleep(SLEEP_TIME);
+    for(unsigned long int n=0;n<packs;n++)
     {
         resp = new char[BUFFER_SIZE];
-        int aux = i;
+        unsigned long int aux = i;
         for (i=aux; i<aux+BUFFER_SIZE;i++){
             if(fstr[i]!=NULL){
             resp[j]=fstr[i];
@@ -520,15 +500,75 @@ void ServerTCP::fragment(std::string full_str,int conexao){
         cout<<"TAMANHO: "<<sizeof(send)<<endl;
         int p=write(conexao,send,sizeof(send)); //sizeof(resp)+1
         if (p < 0) break;
-        usleep(15000);
+        usleep(SLEEP_TIME);
         j=0;
-        delete [] resp;
+        //delete [] resp;
        // bzero(resp,BUFFER_SIZE);
     }
 
 
 }
 
+std::string ServerTCP::readString(int conexao, unsigned long int qtd){
+
+    std::string rcvd_string;
+    char respostab[BUFFER_SIZE];
+    for(unsigned long int packs=0;packs<qtd;packs++){
+
+        int ch = read(conexao, respostab, BUFFER_SIZE);
+        if(ch <= 0) {
+             printf("ClientTCP::sendMessageToServer = Erro ao ler no socket");
+             close(conexao);
+             //connected = false;
+             return NULL;
+            }
+
+        for(int i=0;i<BUFFER_SIZE;i++){
+        if(respostab[i]!=NULL){
+        rcvd_string.push_back(respostab[i]);
+        usleep(SLEEP_TIME);
+        }
+
+        else break;
+        }
+        //delete [] respostab;
+        //bzero(respostab,BUFFER_SIZE);
+       // cout<<"Fragmento: "<<resposta_str<<endl;
+
+    }
+    return rcvd_string;
+}
+
+std::string ServerTCP::readFile(int conexao, unsigned long int qtd){
+
+    char respostab[BUFFER_SIZE];
+    std::string rcvd_string;
+    unsigned long int packs = 0;
+    unsigned long int bytes = 0;
+    if(qtd%BUFFER_SIZE==0) packs = qtd/BUFFER_SIZE;
+    else packs = qtd/BUFFER_SIZE + 1;
+
+    for(unsigned long int chunks=0;chunks<packs;chunks++){
+       int ch = read(conexao, respostab, BUFFER_SIZE);
+       if(ch <= 0) {
+            printf("ClientTCP::sendMessageToServer = Erro ao ler no socket");
+            close(conexao);
+            //connected = false;
+            return NULL;
+           }
+       for(int k=0;k<BUFFER_SIZE;k++){
+       if(bytes<qtd){
+       rcvd_string.push_back(respostab[k]);
+       bytes++;
+       }
+       else return rcvd_string;
+
+        }
+       usleep(SLEEP_TIME);
+       //delete [] respostab;
+    }
+    return rcvd_string;
+}
 
 ///------------------------------------------------------------------------------------------------------
 
